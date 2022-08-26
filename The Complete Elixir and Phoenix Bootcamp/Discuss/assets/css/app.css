@@ -31,6 +31,7 @@
 }
 .invalid-feedback {
   color: #a94442;
+  text-transform: capitalize;
   display: block;
   margin: -1rem 0 2rem;
 }
