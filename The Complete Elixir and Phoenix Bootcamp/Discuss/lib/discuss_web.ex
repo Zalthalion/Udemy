@@ -84,6 +84,17 @@ defmodule DiscussWeb do
     end
   end
 
+  # TODO: Read about models in newer Phoenix versions, will leave this while going through the course
+  def model do
+    quote do
+      use Ecto.Schema
+
+      import Ecto
+      import Ecto.Changeset
+      import Ecto.Query
+    end
+  end
+
   defp view_helpers do
     quote do
       # Use all HTML functionality (forms, tags, etc)
