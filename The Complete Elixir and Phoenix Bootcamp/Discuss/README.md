@@ -1,5 +1,7 @@
 # Discuss
 
+This project was made purely for learning purposes while following a course on Udemy. It was a tad outdated, so I understand that the file structure is not quite up to date and a lot of things still are funky, but for now it will be fine. Maybe will update the file structure and clean up the code a bit.
+
 To start your Phoenix server:
 
   * Install dependencies with `mix deps.get`
