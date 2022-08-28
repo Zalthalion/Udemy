@@ -1,6 +1,8 @@
 defmodule DiscussWeb.Comment do
   use DiscussWeb, :model
 
+  @derive {Jason.Encoder, only: [:content, :user]}
+
   schema "comments" do
     field :content, :string
     belongs_to :user, DiscussWeb.User
@@ -11,7 +13,7 @@ defmodule DiscussWeb.Comment do
 
   def changeset(struct, params \\ %{}) do
     struct
-    |> cast(params, [:content, :user, :topic])
-    |> validate_required([:content, :user, :topic])
+    |> cast(params, [:content])
+    |> validate_required([:content])
   end
 end
