@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "DA34Udk8dyc7/iKM0J7Wgr4RCeBEb8TMKCxDbU0hH/4=",
+  "Hash": "kDORNqMpgxQR+LWDZFrXk4Zh7tXrD+fSGyaI3uyqQQA=",
   "Source": "BulkyBookWeb",
   "BasePath": "_content/BulkyBookWeb",
   "Mode": "Default",
@@ -49,6 +49,23 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "C:\\Users\\freid\\Coding\\Udemy\\Complete guide to ASP.NET Core MVC\\BulkyBook\\BulkyBookWeb\\obj\\Debug\\net6.0\\scopedcss\\projectbundle\\BulkyBookWeb.bundle.scp.css"
+    },
+    {
+      "Identity": "C:\\Users\\freid\\Coding\\Udemy\\Complete guide to ASP.NET Core MVC\\BulkyBook\\BulkyBookWeb\\wwwroot\\css\\darkTheme.css",
+      "SourceId": "BulkyBookWeb",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\freid\\Coding\\Udemy\\Complete guide to ASP.NET Core MVC\\BulkyBook\\BulkyBookWeb\\wwwroot\\",
+      "BasePath": "_content/BulkyBookWeb",
+      "RelativePath": "css/darkTheme.css",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\css\\darkTheme.css"
     },
     {
       "Identity": "C:\\Users\\freid\\Coding\\Udemy\\Complete guide to ASP.NET Core MVC\\BulkyBook\\BulkyBookWeb\\wwwroot\\css\\site.css",
