@@ -1,0 +1,31 @@
+﻿@page
+@model AbbyWeb.Pages.Categories.IndexModel
+
+<div class="container p-3">
+    <div class="row pt-4">
+        <div class="col-6">
+            <h2>Categories</h2>
+        </div>
+        <div class="col-6 text-end">
+            <a asp-page="create" class="btn btn-primary">New Category</a>
+        </div>
+    </div>
+
+    <table class="table table-bordered table-striped" style="width:100%">
+        <thead>
+            <tr>
+                <th>Category name</th>
+                <th>Display order</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var category in Model.Categories)
+            {
+              <tr>
+                  <td width="50%">@category.Name</td>
+                  <td width="30%">@category.DisplayOrder</td>
+              </tr>  
+            }
+        </tbody>
+    </table>
+</div>
