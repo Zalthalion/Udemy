@@ -1,5 +1,7 @@
 using AbbyWeb.Data;
 using AbbyWeb.Model;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ActionConstraints;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace AbbyWeb.Pages.Categories
@@ -17,6 +19,12 @@ namespace AbbyWeb.Pages.Categories
         public void OnGet()
         {
             Categories = _db.Categories;
+        }
+
+        public IActionResult OnPostDelete(int id)
+        {
+
+            return Page();
         }
     }
 }
