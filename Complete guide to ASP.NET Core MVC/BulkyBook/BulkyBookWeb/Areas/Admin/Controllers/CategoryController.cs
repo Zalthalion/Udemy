@@ -1,21 +1,23 @@
 ﻿using BulkyBook.DataAccess.Data;
+using BulkyBook.DataAccess.Repository.IRepository;
 using BulkyBook.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BulkyBook.Web.Controllers
+namespace BulkyBook.Web.Areas.Admin.Controllers
 {
+    [Area("Admin")]
     public class CategoryController : Controller
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CategoryController(ApplicationDbContext db)
+        public CategoryController(IUnitOfWork unitOfWork)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
         }
 
         public IActionResult Index()
         {
-            var _categoryList = _db.Categories.AsEnumerable();
+            var _categoryList = _unitOfWork.CategoryRepository.GetAll();
             return View(_categoryList);
         }
 
@@ -30,8 +32,8 @@ namespace BulkyBook.Web.Controllers
         {
             if (ModelState.IsValid)
             {
-                _db.Categories.Add(category);
-                _db.SaveChanges();
+                _unitOfWork.CategoryRepository.Add(category);
+                _unitOfWork.Save();
                 return RedirectToAction("Index");
             }
 
@@ -40,14 +42,14 @@ namespace BulkyBook.Web.Controllers
 
         public IActionResult Edit(int? id)
         {
-            if(id is null || id == 0)
+            if (id is null || id == 0)
             {
                 return NotFound();
             }
 
-            var category = _db.Categories.FirstOrDefault(x => x.Id == id);  
+            var category = _unitOfWork.CategoryRepository.GetFirstOrDefault(x => x.Id == id);
 
-            if(category is null)
+            if (category is null)
             {
                 return NotFound();
             }
@@ -57,12 +59,12 @@ namespace BulkyBook.Web.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public  IActionResult Edit(Category category)
+        public IActionResult Edit(Category category)
         {
             if (ModelState.IsValid)
             {
-                _db.Categories.Update(category);
-                _db.SaveChanges();
+                _unitOfWork.CategoryRepository.Update(category);
+                _unitOfWork.Save();
                 return RedirectToAction("Index");
             }
 
@@ -71,20 +73,20 @@ namespace BulkyBook.Web.Controllers
 
         public IActionResult Delete(int? id)
         {
-            if(id is null || id == 0)
+            if (id is null || id == 0)
             {
                 return NotFound();
             }
 
-            var category = _db.Categories.FirstOrDefault(x => x.Id == id);
+            var category = _unitOfWork.CategoryRepository.GetFirstOrDefault(x => x.Id == id);
 
-            if(category is null)
+            if (category is null)
             {
                 return NotFound();
             }
 
-            _db.Categories.Remove(category);
-            _db.SaveChanges();
+            _unitOfWork.CategoryRepository.Remove(category);
+            _unitOfWork.Save();
 
             return RedirectToAction("Index");
         }
