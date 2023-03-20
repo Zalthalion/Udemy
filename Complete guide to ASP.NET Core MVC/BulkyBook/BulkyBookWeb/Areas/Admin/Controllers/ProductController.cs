@@ -21,8 +21,7 @@ namespace BulkyBook.Web.Areas.Admin.Controllers
 
         public IActionResult Index()
         {
-            var _productList = _unitOfWork.ProductRepository.GetAll();
-            return View(_productList);
+            return View();
         }
 
         public IActionResult Upsert(int? id)
@@ -54,10 +53,10 @@ namespace BulkyBook.Web.Areas.Admin.Controllers
             }
             else
             {
-                // Updates productVM
-            }
+                productVM.Product = _unitOfWork.ProductRepository.GetFirstOrDefault(x => x.Id == id);
+                return View(productVM);
 
-            return View(productVM);
+            }
         }
 
         [HttpPost]
@@ -75,6 +74,15 @@ namespace BulkyBook.Web.Areas.Admin.Controllers
                     var upliads = Path.Combine(rootPath, @"images\products");
                     var extension = Path.GetExtension(file.FileName);
 
+                    if (productVM.Product.ImageUrl is not null)
+                    {
+                        var oldImagePath = Path.Combine(rootPath, productVM.Product.ImageUrl.TrimStart('\\'));
+                        if (System.IO.File.Exists(oldImagePath))
+                        {
+                            System.IO.File.Delete(oldImagePath);
+                        }
+                    }
+
                     using (var fileStreams = new FileStream(Path.Combine(upliads, fileName + extension), FileMode.Create))
                     {
                         file.CopyTo(fileStreams);
@@ -82,7 +90,16 @@ namespace BulkyBook.Web.Areas.Admin.Controllers
 
                     productVM.Product.ImageUrl = $@"\images\products\{fileName}{extension}";
                 }
-                _unitOfWork.ProductRepository.Add(productVM.Product);
+
+                if (productVM.Product.Id == 0)
+                {
+                    _unitOfWork.ProductRepository.Add(productVM.Product);
+                }
+                else
+                {
+                    _unitOfWork.ProductRepository.Update(productVM.Product);
+                }
+                
                 _unitOfWork.Save();
                 TempData["success"] = "Product created successfully!";
                 return RedirectToAction("Index");
@@ -91,24 +108,34 @@ namespace BulkyBook.Web.Areas.Admin.Controllers
             return View(productVM);
         }
 
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            var productList = _unitOfWork.ProductRepository.GetAll(includeProperties: "Category,Cover");
+            return Json(new { data = productList});
+        }
+
+        [HttpDelete]
         public IActionResult Delete(int? id)
         {
-            if (id is null || id == 0)
-            {
-                return NotFound();
-            }
-
             var product = _unitOfWork.ProductRepository.GetFirstOrDefault(x => x.Id == id);
-
             if (product is null)
             {
-                return NotFound();
+                return Json(new { success = false, message = "Error while deleting" });
+            }
+
+            if (product.ImageUrl is not null)
+            {
+                var oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, product.ImageUrl.TrimStart('\\'));
+                if (System.IO.File.Exists(oldImagePath))
+                {
+                    System.IO.File.Delete(oldImagePath);
+                }
             }
 
             _unitOfWork.ProductRepository.Remove(product);
             _unitOfWork.Save();
-
-            return RedirectToAction("Index");
+            return Json(new { success = true, message = "Deleted successfull!" });
         }
     }
 }

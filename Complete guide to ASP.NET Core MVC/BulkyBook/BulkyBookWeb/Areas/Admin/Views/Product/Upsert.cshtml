@@ -2,7 +2,12 @@
 @model ProductViewModel
 
 <form method="post", asp-action="Upsert" enctype="multipart/form-data">
-    <div class="border p-3 mt-4 row">
+    <input asp-for="Product.Id" hidden />
+    <input asp-for="Product.ImageUrl" hidden />
+
+    <div class="row">
+        <div class="col-10">
+            <div class="border p-3 mt-4 row">
         <div class="row pb-2">
             <h2> @(Model.Product.Id != 0 ? "Edit Product" : "Create a product")</h2>
             <hr />
@@ -52,14 +57,14 @@
             <input type="file" id="uploadBox" name="file" class="form-control" />
         </div>
         <div class="mb-3 col-6">
-            <label asp-for="Product.CategoryId"></label>
+            <label asp-for="Product.Category"></label>
             <select asp-for="Product.CategoryId" asp-items="@Model.CategoryList" class="form-select">
                 <option disabled selected>--Select a category--</option>
             </select>
             <span asp-validation-for="Product.CategoryId" class="text-danger"></span>
         </div>
         <div class="mb-3 col-6">
-            <label asp-for="Product.CoverId"></label>
+            <label asp-for="Product.Cover"></label>
             <select asp-for="Product.CoverId" asp-items="@Model.CoverTypeList" class="form-select" > 
                 <option disabled selected>--Select a cover type--</option>
             </select>
@@ -78,6 +83,14 @@
             <a asp-controller="Product" asp-action="Delete" asp-route-id="@Model.Product.Id" class="btn btn-danger">delete</a>
         </div>
     </div>
+        </div>
+
+        <div class="col-2 pt-4">
+            <img src="@Model.Product.ImageUrl" style="border-bottom-left-radius:5px; border:1px solid #bb9b9b; width:100%;" />
+        </div>
+    </div>
+
+    
 </form>
 
 @section Scripts
