@@ -1,8 +1,6 @@
 ﻿using BulkyBook.DataAccess.Data;
 using BulkyBook.DataAccess.Repository.IRepository;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace BulkyBook.DataAccess.Repository
 {
