@@ -12,6 +12,7 @@ namespace BulkyBook.Models
 
         [ForeignKey("ApplicationUserId")]
         [ValidateNever]
+        // Whoops a typo
         public ApplicationUser AplicationUser { get; set; }
 
         [Required]

@@ -1,8 +1,11 @@
 ﻿using BulkyBook.DataAccess.Repository.IRepository;
+using BulkyBook.Models;
 using BulkyBook.Models.ViewModels;
+using BulkyBook.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using NuGet.Protocol;
+using Microsoft.Extensions.Options;
+using Stripe.Checkout;
 using System.Security.Claims;
 
 namespace BulkyBook.Web.Areas.Customer.Controllers
@@ -13,6 +16,7 @@ namespace BulkyBook.Web.Areas.Customer.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
 
+        [BindProperty]
         public ShoppingCartVM Model { get; set; }
 
         public int OrderTotal { get; set; }
@@ -29,13 +33,15 @@ namespace BulkyBook.Web.Areas.Customer.Controllers
 
             Model = new ShoppingCartVM()
             {
-                ListCart = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == claim.Value, includeProperties: "Product")
+                ListCart = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == claim.Value, includeProperties: "Product"),
+                OrderHeader = new(),
             };
 
+            Model.OrderHeader.OrderTotal = 0;
             foreach (var cart in Model.ListCart)
             {
                 cart.Price = GetPriceBasedOnQuantity(cart.Count, cart.Product.Price, cart.Product.Price50, cart.Product.Price100);
-                Model.CartTotal += cart.Price * cart.Count;
+                Model.OrderHeader.OrderTotal += cart.Price * cart.Count;
             }
 
             return View(Model);
@@ -43,21 +49,136 @@ namespace BulkyBook.Web.Areas.Customer.Controllers
 
         public IActionResult Summary()
         {
-            //var claimsIdentity = (ClaimsIdentity)User.Identity;
-            //var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
 
-            //Model = new ShoppingCartVM()
-            //{
-            //    ListCart = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == claim.Value, includeProperties: "Product")
-            //};
+            Model = new ShoppingCartVM()
+            {
+                ListCart = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == claim.Value, includeProperties: "Product"),
+                OrderHeader = new(),
+            };
 
-            //foreach (var cart in Model.ListCart)
-            //{
-            //    cart.Price = GetPriceBasedOnQuantity(cart.Count, cart.Product.Price, cart.Product.Price50, cart.Product.Price100);
-            //    Model.CartTotal += cart.Price * cart.Count;
-            //}
+            Model.OrderHeader.AplicationUser = _unitOfWork.ApplicationUserRepository.GetFirstOrDefault(x => x.Id == claim.Value);
 
-            return View();
+            Model.OrderHeader.Name = Model.OrderHeader.AplicationUser.Name;
+            Model.OrderHeader.PhoneNumber = Model.OrderHeader.AplicationUser.PhoneNumber;
+            Model.OrderHeader.StreetAddress = Model.OrderHeader.AplicationUser.StreetAddress;
+            Model.OrderHeader.City = Model.OrderHeader.AplicationUser.City;
+            Model.OrderHeader.State = Model.OrderHeader.AplicationUser.State;
+            Model.OrderHeader.PostalCode = Model.OrderHeader.AplicationUser.PostalCode;
+            
+            Model.OrderHeader.OrderTotal = 0;
+            foreach (var cart in Model.ListCart)
+            {
+                cart.Price = GetPriceBasedOnQuantity(cart.Count, cart.Product.Price, cart.Product.Price50, cart.Product.Price100);
+                Model.OrderHeader.OrderTotal += cart.Price * cart.Count;
+            }
+
+            return View(Model);
+        }
+
+        [HttpPost]
+        [ActionName("Summary")]
+        [ValidateAntiForgeryToken]
+        public IActionResult SummaryPOST()
+        {
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
+
+            Model.ListCart = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == claim.Value, includeProperties: "Product");
+
+            Model.OrderHeader.PaymentStatuss = SD.PaymentStatussPending;
+            Model.OrderHeader.OrderStatuss = SD.StatussPending;
+            Model.OrderHeader.OrderDate = DateTime.Now;
+            Model.OrderHeader.ApplicationUserId = claim.Value;
+
+            // This is neded because of the '+=' usage. Idk sometimes it worked without it.
+            Model.OrderHeader.OrderTotal = 0;
+            foreach (var cart in Model.ListCart)
+            {
+                cart.Price = GetPriceBasedOnQuantity(cart.Count, cart.Product.Price, cart.Product.Price50, cart.Product.Price100);
+                Model.OrderHeader.OrderTotal += cart.Price * cart.Count;
+            }
+
+            _unitOfWork.OrderHeaderRepository.Add(Model.OrderHeader);
+            _unitOfWork.Save();
+
+            foreach (var cart in Model.ListCart)
+            {
+                OrderDetail orderDetail = new()
+                {
+                    ProductId = cart.ProductId,
+                    OrderId = Model.OrderHeader.Id,
+                    Price = cart.Price,
+                    Count = cart.Count,
+                };
+
+                _unitOfWork.OrderDetailRepository.Add(orderDetail);
+                _unitOfWork.Save();
+            }
+
+            var domain = "https://localhost:44382/";
+
+            // Stripe settings
+            var options = new SessionCreateOptions
+            {
+                PaymentMethodTypes = new List<string>
+                {
+                    "card",
+                },
+                LineItems = new List<SessionLineItemOptions>(),
+                Mode = "payment",
+                SuccessUrl = domain + $"customer/cart/OrderConfirmation?id={Model.OrderHeader.Id}",
+                CancelUrl = domain + "customer/cart/index",
+            };
+
+            foreach (var item in Model.ListCart)
+            {
+                var sessionLineItem = new SessionLineItemOptions
+                {
+                    PriceData = new SessionLineItemPriceDataOptions
+                    {
+                        UnitAmount = (long)item.Price*100,
+                        Currency = "usd",
+                        ProductData = new SessionLineItemPriceDataProductDataOptions
+                        {
+                            Name = item.Product.Title,
+                        },
+                    },
+                    Quantity = item.Count,
+                };
+
+                options.LineItems.Add(sessionLineItem);
+            };
+
+            var service = new SessionService();
+            Session session = service.Create(options);
+            Model.OrderHeader.SessionId = session.Id;
+            Model.OrderHeader.PaymentIntentId = session.PaymentIntentId;
+            _unitOfWork.OrderHeaderRepository.UpdateStripePaymentId(Model.OrderHeader.Id, session.Id, session.PaymentIntentId);
+            _unitOfWork.Save();
+
+            Response.Headers.Add("Location", session.Url);
+            return new StatusCodeResult(303);
+        }
+
+        public IActionResult OrderConfirmation(int id)
+        {
+            var orderHeader = _unitOfWork.OrderHeaderRepository.GetFirstOrDefault(x => x.Id == id);
+
+            var service = new SessionService();
+            Session session = service.Get(orderHeader.SessionId);
+            if (session.PaymentStatus.ToLower() == "paid")
+            {
+                _unitOfWork.OrderHeaderRepository.UpdateStatuss(id, SD.StatussApproved, SD.PaymentStatussApproved);
+                _unitOfWork.Save();
+            }
+
+            List<ShoppingCart> shoppingCarts = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == orderHeader.ApplicationUserId).ToList();
+
+            _unitOfWork.ShoppingCartRepository.RemoveRange(shoppingCarts);
+            _unitOfWork.Save();
+            return View(id);
         }
 
         // I dont like that this refreshes the page everytime, there probably is a better way to do it
