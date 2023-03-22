@@ -20,7 +20,7 @@ namespace BulkyBook.Models
 
         public DateTime ShippingDate { get; set; }
 
-        public double? OrderTotal { get; set; }
+        public double OrderTotal { get; set; }
 
         public string? OrderStatuss { get; set; }
 

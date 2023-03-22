@@ -38,6 +38,7 @@ namespace BulkyBook.DataAccess.Repository
 
             if (orderHeaderFromDb is not null)
             {
+                orderHeaderFromDb.PaymentDate = DateTime.Now;
                 orderHeaderFromDb.SessionId = sessionId;
                 orderHeaderFromDb.PaymentIntentId = paymentIntentId;
             }
