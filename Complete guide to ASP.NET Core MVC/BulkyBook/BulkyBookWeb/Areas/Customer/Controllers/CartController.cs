@@ -87,8 +87,6 @@ namespace BulkyBook.Web.Areas.Customer.Controllers
 
             Model.ListCart = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == claim.Value, includeProperties: "Product");
 
-            Model.OrderHeader.PaymentStatuss = SD.PaymentStatussPending;
-            Model.OrderHeader.OrderStatuss = SD.StatussPending;
             Model.OrderHeader.OrderDate = DateTime.Now;
             Model.OrderHeader.ApplicationUserId = claim.Value;
 
@@ -98,6 +96,18 @@ namespace BulkyBook.Web.Areas.Customer.Controllers
             {
                 cart.Price = GetPriceBasedOnQuantity(cart.Count, cart.Product.Price, cart.Product.Price50, cart.Product.Price100);
                 Model.OrderHeader.OrderTotal += cart.Price * cart.Count;
+            }
+
+            ApplicationUser applicationUser = _unitOfWork.ApplicationUserRepository.GetFirstOrDefault(x => x.Id == claim.Value);
+            if (applicationUser.CompanyId.GetValueOrDefault() == 0)
+            {
+                Model.OrderHeader.PaymentStatuss = SD.PaymentStatussPending;
+                Model.OrderHeader.OrderStatuss = SD.StatussPending;
+            }
+            else
+            {
+                Model.OrderHeader.PaymentStatuss = SD.PaymentStatussDelayedPayment;
+                Model.OrderHeader.OrderStatuss = SD.StatussApproved;
             }
 
             _unitOfWork.OrderHeaderRepository.Add(Model.OrderHeader);
@@ -117,67 +127,77 @@ namespace BulkyBook.Web.Areas.Customer.Controllers
                 _unitOfWork.Save();
             }
 
-            var domain = "https://localhost:44382/";
-
-            // Stripe settings
-            var options = new SessionCreateOptions
+            if (applicationUser.CompanyId.GetValueOrDefault() == 0)
             {
-                PaymentMethodTypes = new List<string>
+                var domain = "https://localhost:44382/";
+
+                // Stripe settings
+                var options = new SessionCreateOptions
+                {
+                    PaymentMethodTypes = new List<string>
                 {
                     "card",
                 },
-                LineItems = new List<SessionLineItemOptions>(),
-                Mode = "payment",
-                SuccessUrl = domain + $"customer/cart/OrderConfirmation?id={Model.OrderHeader.Id}",
-                CancelUrl = domain + "customer/cart/index",
-            };
-
-            foreach (var item in Model.ListCart)
-            {
-                var sessionLineItem = new SessionLineItemOptions
-                {
-                    PriceData = new SessionLineItemPriceDataOptions
-                    {
-                        UnitAmount = (long)item.Price*100,
-                        Currency = "usd",
-                        ProductData = new SessionLineItemPriceDataProductDataOptions
-                        {
-                            Name = item.Product.Title,
-                        },
-                    },
-                    Quantity = item.Count,
+                    LineItems = new List<SessionLineItemOptions>(),
+                    Mode = "payment",
+                    SuccessUrl = domain + $"customer/cart/OrderConfirmation?id={Model.OrderHeader.Id}",
+                    CancelUrl = domain + "customer/cart/index",
                 };
 
-                options.LineItems.Add(sessionLineItem);
-            };
+                foreach (var item in Model.ListCart)
+                {
+                    var sessionLineItem = new SessionLineItemOptions
+                    {
+                        PriceData = new SessionLineItemPriceDataOptions
+                        {
+                            UnitAmount = (long)item.Price * 100,
+                            Currency = "usd",
+                            ProductData = new SessionLineItemPriceDataProductDataOptions
+                            {
+                                Name = item.Product.Title,
+                            },
+                        },
+                        Quantity = item.Count,
+                    };
 
-            var service = new SessionService();
-            Session session = service.Create(options);
-            Model.OrderHeader.SessionId = session.Id;
-            Model.OrderHeader.PaymentIntentId = session.PaymentIntentId;
-            _unitOfWork.OrderHeaderRepository.UpdateStripePaymentId(Model.OrderHeader.Id, session.Id, session.PaymentIntentId);
-            _unitOfWork.Save();
+                    options.LineItems.Add(sessionLineItem);
+                };
 
-            Response.Headers.Add("Location", session.Url);
-            return new StatusCodeResult(303);
+                var service = new SessionService();
+                Session session = service.Create(options);
+                Model.OrderHeader.SessionId = session.Id;
+                Model.OrderHeader.PaymentIntentId = session.PaymentIntentId;
+                _unitOfWork.OrderHeaderRepository.UpdateStripePaymentId(Model.OrderHeader.Id, session.Id, session.PaymentIntentId);
+                _unitOfWork.Save();
+
+                Response.Headers.Add("Location", session.Url);
+                return new StatusCodeResult(303);
+            }
+            else
+            {
+                return RedirectToAction("OrderConfirmation", "Cart", new { id = Model.OrderHeader.Id});
+            }
         }
 
         public IActionResult OrderConfirmation(int id)
         {
             var orderHeader = _unitOfWork.OrderHeaderRepository.GetFirstOrDefault(x => x.Id == id);
 
-            var service = new SessionService();
-            Session session = service.Get(orderHeader.SessionId);
-            if (session.PaymentStatus.ToLower() == "paid")
+            if (orderHeader.PaymentStatuss != SD.PaymentStatussDelayedPayment)
             {
-                _unitOfWork.OrderHeaderRepository.UpdateStatuss(id, SD.StatussApproved, SD.PaymentStatussApproved);
-                _unitOfWork.Save();
+                var service = new SessionService();
+                Session session = service.Get(orderHeader.SessionId);
+                if (session.PaymentStatus.ToLower() == "paid")
+                {
+                    _unitOfWork.OrderHeaderRepository.UpdateStatuss(id, SD.StatussApproved, SD.PaymentStatussApproved);
+                    _unitOfWork.Save();
+                }
             }
 
             List<ShoppingCart> shoppingCarts = _unitOfWork.ShoppingCartRepository.GetAll(x => x.ApplicationUserId == orderHeader.ApplicationUserId).ToList();
-
             _unitOfWork.ShoppingCartRepository.RemoveRange(shoppingCarts);
             _unitOfWork.Save();
+
             return View(id);
         }
 
