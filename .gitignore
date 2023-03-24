@@ -459,3 +459,4 @@ $RECYCLE.BIN/
 !.vscode/launch.json
 !.vscode/extensions.json
 .vscode/settings.json
+*.png
